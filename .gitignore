@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+.env
+artifacts/
+TestResults/
+coverage/
+wwwroot/uploads/
+data-protection-keys/
