@@ -1,4 +1,4 @@
-name: Diagnosticar bootstrap Arete v10
+name: Finalizar importacao Arete v10
 
 on:
   push:
@@ -11,36 +11,49 @@ permissions:
   contents: write
 
 jobs:
-  diagnosticar:
+  importar:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Diagnosticar partes
+
+      - name: Reconstruir, validar e publicar Arete v10
         shell: bash
         run: |
-          set -u
-          for f in .bootstrap/part_{00..12}; do
-            echo "=== $f ==="
-            wc -c < "$f"
-            printf 'inicio='; head -c 24 "$f"; echo
-            printf 'fim='; tail -c 24 "$f"; echo
-            printf 'padding='; grep -o '=' "$f" | wc -l || true
-            if LC_ALL=C grep -q '[^A-Za-z0-9+/=]' "$f"; then echo 'chars=INVALIDOS'; else echo 'chars=base64'; fi
-          done
-          echo '=== testes incrementais ==='
-          : > /tmp/join.b64
-          for n in $(seq -w 0 12); do
-            cat ".bootstrap/part_$n" >> /tmp/join.b64
-            if base64 -d /tmp/join.b64 > /tmp/test.bin 2>/tmp/b64.err; then
-              if gzip -t /tmp/test.bin 2>/tmp/gz.err; then
-                echo "ate_$n=BASE64_OK_GZIP_OK"
-              else
-                echo "ate_$n=BASE64_OK_GZIP_INCOMPLETO"
-              fi
-            else
-              echo "ate_$n=BASE64_INVALIDO $(tr '\n' ' ' </tmp/b64.err)"
-            fi
-          done
-          exit 1
+          set -euo pipefail
+
+          cat \
+            .bootstrap/part_00 \
+            .stage/part_01 \
+            .stage/part_02 \
+            .stage/part_03 \
+            .stage/part_04 \
+            .bootstrap/part_05 \
+            .bootstrap/part_06 \
+            .stage/part_07 \
+            .bootstrap/part_08 \
+            .bootstrap/part_09 \
+            .bootstrap/part_10 \
+            .stage/part_11 \
+            .stage/part_12 \
+            .stage/part_13 \
+            .stage/part_14 \
+            .stage/part_15 \
+            .stage/part_16 > /tmp/arete-stage.b64
+
+          base64 -d /tmp/arete-stage.b64 > /tmp/arete-stage.tar.gz
+          gzip -t /tmp/arete-stage.tar.gz
+          echo "Arquivos no pacote: $(tar -tzf /tmp/arete-stage.tar.gz | wc -l)"
+
+          rm -rf .bootstrap .stage
+          tar -xzf /tmp/arete-stage.tar.gz -C .
+
+          rm -f .github/workflows/import-arete.yml
+          rm -f .github/workflows/import-arete-final.yml
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: importar Arete v10 pre-pagamentos'
+          git push origin HEAD:main
